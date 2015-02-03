@@ -70,11 +70,11 @@ TEST(HexbinFilterTest, HexbinFilterTest_test_1)
         "use in situations where you do not want to estimate based on "
         "a sample");
 
-    ReaderPtr reader(f.createReader("readers.las"));
+    std::unique_ptr<Stage> reader(f.createStage("readers.las"));
     EXPECT_TRUE(reader.get());
     reader->setOptions(options);
 
-    FilterPtr hexbin(f.createFilter("filters.hexbin"));
+    std::unique_ptr<Stage> hexbin(f.createStage("filters.hexbin"));
     EXPECT_TRUE(hexbin.get());
     hexbin->setOptions(options);
     hexbin->setInput(reader.get());

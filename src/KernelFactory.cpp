@@ -34,9 +34,16 @@
 
 #include <pdal/KernelFactory.hpp>
 #include <pdal/Kernel.hpp>
-#include <pdal/Kernels.hpp>
-
+#include <pdal/PluginManager.hpp>
 #include <pdal/Utils.hpp>
+
+#include <delta/DeltaKernel.hpp>
+#include <diff/DiffKernel.hpp>
+#include <info/InfoKernel.hpp>
+#include <pipeline/PipelineKernel.hpp>
+#include <random/RandomKernel.hpp>
+#include <sort/SortKernel.hpp>
+#include <translate/TranslateKernel.hpp>
 
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
@@ -44,77 +51,11 @@
 
 #include <sstream>
 #include <stdio.h> // for funcptr
+#include <string>
+#include <vector>
 
 namespace pdal
 {
-
-//
-// define the functions to create the kernels
-//
-MAKE_KERNEL_CREATOR(delta, pdal::DeltaKernel)
-MAKE_KERNEL_CREATOR(diff, pdal::DiffKernel)
-MAKE_KERNEL_CREATOR(info, pdal::InfoKernel)
-MAKE_KERNEL_CREATOR(pipeline, pdal::PipelineKernel)
-MAKE_KERNEL_CREATOR(random, pdal::RandomKernel)
-MAKE_KERNEL_CREATOR(sort, pdal::SortKernel)
-MAKE_KERNEL_CREATOR(translate, pdal::TranslateKernel)
-
-KernelFactory::KernelFactory()
-{
-    registerKnownKernels();
-
-    loadPlugins();
-    return;
-}
-
-
-std::unique_ptr<Kernel> KernelFactory::createKernel(const std::string& type)
-{
-    KernelCreator* f = getKernelCreator(type);
-    if (!f)
-    {
-        std::ostringstream oss;
-        oss << "Unable to create kernel for type '" << type << "'. Does a driver with this type name exist?";
-        throw pdal_error(oss.str());
-    }
-    std::unique_ptr<Kernel> kernel(f());
-    return kernel;
-}
-
-
-template<typename T>
-static T* findFirst(const std::string& type, std::map<std::string, T*> list)
-{
-    typename std::map<std::string, T*>::const_iterator iter = list.find(type);
-    if (iter == list.end())
-        return NULL;
-    return (*iter).second;
-}
-
-
-KernelFactory::KernelCreator* KernelFactory::getKernelCreator(const std::string& type) const
-{
-    return findFirst<KernelCreator>(type, m_kernelCreators);
-}
-
-
-void KernelFactory::registerKernel(const std::string& type, KernelCreator* f)
-{
-    std::pair<std::string, KernelCreator*> p(type, f);
-    m_kernelCreators.insert(p);
-}
-
-
-void KernelFactory::registerKnownKernels()
-{
-    REGISTER_KERNEL(delta, pdal::DeltaKernel);
-    REGISTER_KERNEL(diff, pdal::DiffKernel);
-    REGISTER_KERNEL(info, pdal::InfoKernel);
-    REGISTER_KERNEL(pipeline, pdal::PipelineKernel);
-    REGISTER_KERNEL(random, pdal::RandomKernel);
-    REGISTER_KERNEL(sort, pdal::SortKernel);
-    REGISTER_KERNEL(translate, pdal::TranslateKernel);
-}
 
 
 void KernelFactory::loadPlugins()
@@ -215,7 +156,7 @@ void KernelFactory::loadPlugins()
             path basename = t->first;
             path filename = t->second;
 
-            registerPlugin(filename.string());
+            //registerPlugin(filename.string());
             // std::string methodName = "PDALRegister_" + boost::algorithm::ireplace_first_copy(basename.string(), "libpdal_plugin_", "");
             // Utils::registerPlugin((void*)this, filename.string(), methodName);
 
@@ -223,40 +164,46 @@ void KernelFactory::loadPlugins()
     }
 }
 
-
-void KernelFactory::registerPlugin(std::string const& filename)
+KernelFactory::KernelFactory(bool no_plugins)
 {
-    using namespace boost::filesystem;
-    path basename;
-
-    path t = path(filename);
-    for (; !t.extension().empty(); t = t.stem())
-    {
-        if (t.stem().extension().empty())
-        {
-            basename = t.stem().string();
-        }
-    }
-
-    std::string base = basename.string();
-
-    std::string pluginName = boost::algorithm::ireplace_first_copy(base, "libpdal_plugin_", "");
-    std::string pluginType = pluginName.substr(0, pluginName.find_last_of("_"));
-    if (boost::iequals(pluginType, "kernel"))
-    {
-        std::string registerMethodName = "PDALRegister_" + pluginName;
-
-        std::string versionMethodName = "PDALRegister_version_" + pluginName;
-
-        Utils::registerPlugin((void*)this, filename, registerMethodName, versionMethodName);
-    }
+    PluginManager & pm = PluginManager::getInstance();
+    if (!no_plugins) { pm.loadAll(PF_PluginType_Kernel); }
+    PluginManager::initializePlugin(DeltaKernel_InitPlugin);
+    PluginManager::initializePlugin(DiffKernel_InitPlugin);
+    PluginManager::initializePlugin(InfoKernel_InitPlugin);
+    PluginManager::initializePlugin(PipelineKernel_InitPlugin);
+    PluginManager::initializePlugin(RandomKernel_InitPlugin);
+    PluginManager::initializePlugin(SortKernel_InitPlugin);
+    PluginManager::initializePlugin(TranslateKernel_InitPlugin);
 }
 
-
-std::map<std::string, pdal::KernelInfo> const& KernelFactory::getKernelInfos() const
+std::unique_ptr<Kernel> KernelFactory::createKernel(std::string const& kernel_name)
 {
-    return m_driver_info;
+    PluginManager & pm = PluginManager::getInstance();
+
+    void * kernel = pm.createObject(kernel_name);
+    if (!kernel)
+    {
+        int32_t res = pm.guessLoadByPath(kernel_name);
+        if (res == 0)
+            kernel = pm.createObject(kernel_name);
+    }
+    Kernel *k = (Kernel*)kernel;
+    std::unique_ptr<Kernel> retKernel(k);
+    return retKernel;
 }
 
+std::vector<std::string> KernelFactory::getKernelNames()
+{
+    PluginManager & pm = PluginManager::getInstance();
+    PluginManager::RegistrationMap rm = pm.getRegistrationMap();
+    std::vector<std::string> nv;
+    for (auto r : rm)
+    {
+        if (r.second.pluginType == PF_PluginType_Kernel)
+            nv.push_back(r.first);
+    }
+    return nv;
+}
 
 } // namespace pdal
