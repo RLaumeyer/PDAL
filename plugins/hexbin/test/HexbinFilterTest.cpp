@@ -92,8 +92,11 @@ TEST(HexbinFilterTest, HexbinFilterTest_test_1)
     printChildren(out, m);
     out.close();
 
-    EXPECT_TRUE(Support::compare_text_files(filename,
-        Support::datapath("filters/hexbin.txt")));
+    bool ok = Support::compare_text_files(filename,
+        Support::datapath("filters/hexbin.txt"));
 
-    FileUtils::deleteFile(filename);
+    if (ok)
+        FileUtils::deleteFile(filename);
+
+    EXPECT_TRUE(ok);
 }

@@ -46,20 +46,6 @@ static std::string xml_str_ref = "<Name>my_string</Name><Value>Yow.</Value><Desc
 
 using namespace pdal;
 
-namespace
-{
-    using namespace std;
-
-    static bool hasOption(vector<Option> const& opts, string const& name)
-    {
-        bool found = false;
-        for (const auto& o : opts)
-            if (o.getName() == name)
-                found = true;
-        return found;
-    }
-}
-
 TEST(OptionsTest, test_static_options)
 {
     Options ops;

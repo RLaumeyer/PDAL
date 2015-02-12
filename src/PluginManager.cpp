@@ -1,3 +1,42 @@
+/******************************************************************************
+* Copyright (c) 2015, Bradley J Chambers (brad.chambers@gmail.com)
+*
+* All rights reserved.
+*
+* Redistribution and use in source and binary forms, with or without
+* modification, are permitted provided that the following
+* conditions are met:
+*
+*     * Redistributions of source code must retain the above copyright
+*       notice, this list of conditions and the following disclaimer.
+*     * Redistributions in binary form must reproduce the above copyright
+*       notice, this list of conditions and the following disclaimer in
+*       the documentation and/or other materials provided
+*       with the distribution.
+*     * Neither the name of Hobu, Inc. or Flaxen Geo Consulting nor the
+*       names of its contributors may be used to endorse or promote
+*       products derived from this software without specific prior
+*       written permission.
+*
+* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+* LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+* FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+* COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+* INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+* BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
+* OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+* AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
+* OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY
+* OF SUCH DAMAGE.
+****************************************************************************/
+
+// The PluginManager was modeled very closely after the work of Gigi Sayfan in
+// the Dr. Dobbs article:
+// http://www.drdobbs.com/cpp/building-your-own-plugin-framework-part/206503957
+// The original work was released under the Apache License v2.
+
 #include <pdal/PluginManager.hpp>
 
 #include <boost/algorithm/string.hpp>
@@ -90,10 +129,12 @@ int32_t PluginManager::loadAll(const std::string & pluginDirectory, PF_PluginTyp
     if (!boost::filesystem::exists(pluginDirectory) || !boost::filesystem::is_directory(pluginDirectory))
         return -1;
 
-    boost::filesystem::directory_iterator dir(pluginDirectory);
-    for (auto const& it : dir)
+    boost::filesystem::directory_iterator dir(pluginDirectory), it, end;
+    // Looks like directory_iterator doesn't support range-based for loop in
+    // Boost v1.55. It fails Travis anyway, so I reverted it.
+    for (it = dir; it != end; ++it)
     {
-        boost::filesystem::path full_path = it.path();
+        boost::filesystem::path full_path = it->path();
 
         if (boost::filesystem::is_directory(full_path))
             continue;
@@ -185,10 +226,12 @@ int32_t PluginManager::guessLoadByPath(const std::string& driverName)
         if (!boost::filesystem::exists(path) || !boost::filesystem::is_directory(path))
             continue;
 
-        boost::filesystem::directory_iterator dir(path);
-        for (auto const& it : dir)
+        boost::filesystem::directory_iterator dir(path), it, end;
+        // Looks like directory_iterator doesn't support range-based for loop in
+        // Boost v1.55. It fails Travis anyway, so I reverted it.
+        for (it = dir; it != end; ++it)
         {
-            boost::filesystem::path full_path = it.path();
+            boost::filesystem::path full_path = it->path();
             
             if (boost::filesystem::is_directory(full_path))
                 continue;
