@@ -52,6 +52,15 @@
 namespace pdal
 {
 
+void LasReader::processOptions(const Options& options)
+{
+    StringList extraDims = options.getValueOrDefault<StringList>("extra_dims");
+    m_extraDims = LasUtils::parse(extraDims);
+
+    m_error.setFilename(m_filename);
+}
+
+
 QuickInfo LasReader::inspect()
 {
     QuickInfo qi;
@@ -152,8 +161,10 @@ void LasReader::ready(PointContext ctx, MetadataNode& m)
 
 Options LasReader::getDefaultOptions()
 {
-    Option option1("filename", "", "file to read from");
-    Options options(option1);
+    Options options;
+    options.add("filename", "", "file to read from");
+    options.add("extra_dims", "", "Extra dimensions not part of the LAS "
+        "point format to be read from each point.");
     return options;
 }
 
@@ -427,6 +438,9 @@ void LasReader::addDimensions(PointContextRef ctx)
         ctx.registerDim(Id::Infrared);
     if (m_lasHeader.versionAtLeast(1, 4))
         ctx.registerDim(Id::ScanChannel);
+
+    for (auto& dim : m_extraDims)
+        dim.m_dimType.m_id = ctx.assignDim(dim.m_name, dim.m_dimType.m_type);
 }
 
 
@@ -577,6 +591,13 @@ void LasReader::loadPointV10(PointBuffer& data, char *buf, size_t bufsize)
         data.setField(Dimension::Id::Green, nextId, green);
         data.setField(Dimension::Id::Blue, nextId, blue);
     }
+
+    Everything e;
+    for (auto& dim : m_extraDims)
+    {
+        istream.get(dim.m_dimType.m_type, e);
+        data.setField(dim.m_dimType.m_id, dim.m_dimType.m_type, nextId, &e);
+    }
 }
 
 void LasReader::loadPointV14(PointBuffer& data, char *buf, size_t bufsize)
@@ -644,6 +665,13 @@ void LasReader::loadPointV14(PointBuffer& data, char *buf, size_t bufsize)
 
         istream >> nearInfraRed;
         data.setField(Dimension::Id::Infrared, nextId, nearInfraRed);
+    }
+
+    Everything e;
+    for (auto& dim : m_extraDims)
+    {
+        istream.get(dim.m_dimType.m_type, e);
+        data.setField(dim.m_dimType.m_id, dim.m_dimType.m_type, nextId, &e);
     }
 }
 

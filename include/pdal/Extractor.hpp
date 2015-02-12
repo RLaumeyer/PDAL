@@ -106,6 +106,47 @@ public:
     LeExtractor(const char *buf, std::size_t size) : Extractor(buf, size)
     {}
 
+    void get(Dimension::Type::Enum type, Everything& e)
+    {
+        using namespace Dimension::Type;
+
+        switch (type)
+        {
+        case Unsigned8:
+            *this >> e.u8;
+            break;
+        case Unsigned16:
+            *this >> e.u16;
+            break;
+        case Unsigned32:
+            *this >> e.u32;
+            break;
+        case Unsigned64:
+            *this >> e.u64;
+            break;
+        case Signed8:
+            *this >> e.s8;
+            break;
+        case Signed16:
+            *this >> e.s16;
+            break;
+        case Signed32:
+            *this >> e.s32;
+            break;
+        case Signed64:
+            *this >> e.s64;
+            break;
+        case Float:
+            *this >> e.f;
+            break;
+        case Double:
+            *this >> e.d;
+            break;
+        case None:
+            break;
+        }
+    }
+
     LeExtractor& operator >> (uint8_t& v)
     {
         v = *(const uint8_t *)m_gptr++;

@@ -744,7 +744,7 @@ inline Type::Enum type(std::string s)
         return Type::Float;
     if (s == "double")
         return Type::Double;
-    throw pdal_error("Unrecognized dimension type");
+    return Type::None;
 }
 
 } // namespace Dimension

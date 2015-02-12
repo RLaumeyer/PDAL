@@ -22,6 +22,7 @@ set(incs
   GeotiffSupport.hpp
   LasError.hpp
   LasHeader.hpp
+  LasUtils.hpp
   SummaryData.hpp
   VariableLengthRecord.hpp
   ZipPoint.hpp

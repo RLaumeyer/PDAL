@@ -39,6 +39,7 @@
 #include <pdal/StreamFactory.hpp>
 #include "LasError.hpp"
 #include "LasHeader.hpp"
+#include "LasUtils.hpp"
 #include "ZipPoint.hpp"
 
 namespace pdal
@@ -79,11 +80,11 @@ private:
     point_count_t m_index;
     std::istream* m_istream;
     VlrList m_vlrs;
+    std::vector<ExtraDim> m_extraDims;
 
     virtual StreamFactoryPtr createFactory() const
         { return StreamFactoryPtr(new FilenameStreamFactory(m_filename)); }
-    virtual void processOptions(const Options&)
-        { m_error.setFilename(m_filename); }
+    virtual void processOptions(const Options& options);
     virtual void initialize();
     virtual void addDimensions(PointContextRef ctx);
     void fixupVlrs();

@@ -86,6 +86,47 @@ public:
     LeInserter(char *buf, std::size_t size) : Inserter(buf, size)
     {}
 
+    void put(Dimension::Type::Enum type, const Everything& e)
+    {
+       using namespace Dimension::Type;
+
+        switch (type)
+        {
+        case Unsigned8:
+            *this << e.u8;
+            break;
+        case Unsigned16:
+            *this << e.u16;
+            break;
+        case Unsigned32:
+            *this << e.u32;
+            break;
+        case Unsigned64:
+            *this << e.u64;
+            break;
+        case Signed8:
+            *this << e.s8;
+            break;
+        case Signed16:
+            *this << e.s16;
+            break;
+        case Signed32:
+            *this << e.s32;
+            break;
+        case Signed64:
+            *this << e.s64;
+            break;
+        case Float:
+            *this << e.f;
+            break;
+        case Double:
+            *this << e.d;
+            break;
+        case None:
+            break;
+        }
+    }
+
     LeInserter& operator << (uint8_t v)
     {
         *m_pptr++ = (char)v;
