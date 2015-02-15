@@ -221,14 +221,8 @@ public:
         { return dimDetail(id)->size(); }
     size_t dimOffset(Dimension::Id::Enum id) const
         { return dimDetail(id)->offset(); }
-
     size_t pointSize() const
-    {
-        size_t size(0);
-        for (const auto& d : m_dims->m_detail)
-            size += d.size();
-        return size;
-    }
+        { return m_ptBuf->pointSize(); }
 
 private:
     Dimension::Detail *dimDetail(Dimension::Id::Enum id) const
