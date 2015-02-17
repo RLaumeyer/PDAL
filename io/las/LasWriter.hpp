@@ -111,6 +111,7 @@ private:
     void setVlrsFromMetadata();
     MetadataNode findVlrMetadata(MetadataNode node, uint16_t recordId,
         const std::string& userId);
+    void setExtraBytesVlr();
     void setVlrsFromSpatialRef(const SpatialReference& srs);
     void readyCompression();
     void openCompression();

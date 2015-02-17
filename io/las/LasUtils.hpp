@@ -46,6 +46,72 @@ struct ExtraDim
     DimType m_dimType;
 };
 
+struct ExtraBytesSpec
+{
+    char m_reserved[2];
+    uint8_t m_dataType;
+    uint8_t m_options;
+    char m_name[32];
+    char m_reserved2[4];
+    uint64_t m_noData[3]; // 24 = 3*8 bytes
+    double m_min[3]; // 24 = 3*8 bytes
+    double m_max[3]; // 24 = 3*8 bytes
+    double m_scale[3]; // 24 = 3*8 bytes
+    double m_offset[3]; // 24 = 3*8 bytes
+    char m_description[32];
+};
+
+class ExtraBytesIf
+{
+public:
+    ExtraBytesIf(const std::string& name, Dimension::Type::Enum type,
+        const std::string& description)
+    {
+        memset(&m_extraField, 0, sizeof(m_extraField));
+        setType(type);
+        setName(name);
+        setDescription(description);
+    }
+
+
+    void setType(Dimension::Type::Enum type)
+    {
+        using namespace Dimension::Type;
+
+        Dimension::Type::Enum lastypes[] = {
+            None, Unsigned8, Signed8, Unsigned16, Signed16,
+            Unsigned32, Signed32, Unsigned64, Signed64, Float, Double
+        };
+
+        for (size_t i = 0; i < sizeof(lastypes) / sizeof(lastypes[0]); ++i)
+            if (type == lastypes[i])
+            {
+                m_extraField.m_dataType = (uint8_t)i;
+                break;
+            }
+    }
+
+    void setName(std::string name)
+    { 
+        name.resize(32);
+        memcpy(m_extraField.m_name, name.data(), 32);
+    }
+    void setDescription(std::string description)
+    {
+        description.resize(32);
+        memcpy(m_extraField.m_description, description.data(), 32);
+    }
+    void appendTo(std::vector<uint8_t>& ebBytes)
+    {
+        size_t offset = ebBytes.size();
+        ebBytes.resize(ebBytes.size() + sizeof(ExtraBytesSpec));
+        memcpy(ebBytes.data() + offset, &m_extraField, sizeof(ExtraBytesSpec));
+    }
+
+private:
+    ExtraBytesSpec m_extraField;
+};
+
 namespace LasUtils
 {
 

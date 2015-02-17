@@ -218,6 +218,7 @@ void LasWriter::ready(PointContextRef ctx)
         m_ostream = FileUtils::createFile(m_filename, true);
     setVlrsFromMetadata();
     setVlrsFromSpatialRef(srs);
+    setExtraBytesVlr();
     fillHeader(ctx);
 
     if (m_lasHeader.compressed())
@@ -373,6 +374,22 @@ bool LasWriter::addWktVlr(const SpatialReference& srs)
     addVlr(LIBLAS_USER_ID, WKT_RECORD_ID,
         "OGR variant of OpenGIS WKT SRS", wktBytes2);
     return true;
+}
+
+void LasWriter::setExtraBytesVlr()
+{
+    if (m_extraDims.empty())
+        return;
+
+    std::vector<uint8_t> ebBytes;
+    for (auto& dim : m_extraDims)
+    {
+        ExtraBytesIf eb(dim.m_name, dim.m_dimType.m_type,
+            Dimension::description(dim.m_dimType.m_id)); 
+        eb.appendTo(ebBytes);
+    }
+
+    addVlr(SPEC_USER_ID, EXTRA_BYTES_RECORD_ID, "Extra Bytes Record", ebBytes);
 }
 
 
