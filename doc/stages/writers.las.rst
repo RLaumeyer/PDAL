@@ -71,6 +71,20 @@ compression
   Set to true to apply compression to the output, creating a LAZ file instead
   of an LAS file.  Requires PDAL to have been built with compression support
   by linking with LASzip.  [Default: false]
+
+scale_x, scale_y, scale_z
+  Scale to be divided from the X, Y and Z nominal values, respectively, after
+  the offset has been applied.  [Default: .01]
+
+  Note: written value = (nominal value - offset) / scale.
+
+offset_x, offset_y, offset_z
+   Offset to be subtracted from the X, Y and Z nominal values, respectively,
+   before the value is scaled.  The special value "auto" can be specified,
+   which causes the writer to set the offset to the minimum value of the
+   dimension.  [Default: 0]
+
+   Note: written value = (nominal value - offset) / scale.
   
 filesource_id
   The file source id number to use for this file (a value between
