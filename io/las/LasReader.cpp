@@ -52,6 +52,54 @@
 namespace pdal
 {
 
+namespace
+{
+
+double toDouble(const Everything& e, Dimension::Type::Enum type)
+{
+    using namespace Dimension::Type;
+
+    double d = 0;
+    switch (type)
+    {
+    case Unsigned8:
+        d = e.u8;
+        break;
+    case Unsigned16:
+        d = e.u16;
+        break;
+    case Unsigned32:
+        d = e.u32;
+        break;
+    case Unsigned64:
+        d = e.u64;
+        break;
+    case Signed8:
+        d = e.s8;
+        break;
+    case Signed16:
+        d = e.s16;
+        break;
+    case Signed32:
+        d = e.s32;
+        break;
+    case Signed64:
+        d = e.s64;
+        break;
+    case Float:
+        d = e.f;
+        break;
+    case Double:
+        d = e.d;
+        break;
+    default:
+        break;
+    }
+    return d;
+}
+
+} // unnamed namespace
+
 void LasReader::processOptions(const Options& options)
 {
     StringList extraDims = options.getValueOrDefault<StringList>("extra_dims");
@@ -116,6 +164,7 @@ void LasReader::initialize()
             in >> r;
             m_vlrs.push_back(std::move(r));
         }
+        readExtraBytesVlr();
     }
     fixupVlrs();
 }
@@ -290,6 +339,44 @@ void LasReader::fixupVlrs()
 }
 
 
+void LasReader::readExtraBytesVlr()
+{
+    VariableLengthRecord *vlr = findVlr(SPEC_USER_ID, EXTRA_BYTES_RECORD_ID);
+    if (!vlr) 
+        return;
+    const char *pos = vlr->data();
+    size_t size = vlr->dataLen();
+    if (size % sizeof(ExtraBytesSpec) != 0)
+    {
+        log()->get(LogLevel::Warning) << "Bad size for extra bytes VLR.  "
+            "Ignoring.";
+        return;
+    }
+    size /= sizeof(ExtraBytesSpec);
+    std::vector<ExtraBytesIf> ebList;
+    while (size--)
+    {
+        ExtraBytesIf eb;
+        eb.readFrom(pos);
+        ebList.push_back(eb);
+        pos += sizeof(ExtraBytesSpec);
+    }
+
+    std::vector<ExtraDim> extraDims;
+    for (ExtraBytesIf& eb : ebList)
+    {
+       std::vector<ExtraDim> eds = eb.toExtraDims();
+       for (auto& ed : eds)
+           extraDims.push_back(std::move(ed));
+    }
+    if (m_extraDims.size() && m_extraDims != extraDims)
+        log()->get(LogLevel::Warning) << "Extra byte dimensions specified "
+            "in pineline and VLR don't match.  Ignoring pipeline-specified "
+            "dimensions";
+    m_extraDims = extraDims;
+}
+
+
 void LasReader::setSrsFromVlrs(MetadataNode& m)
 {
     // If the user is already overriding this by setting it on the stage, we'll
@@ -440,7 +527,12 @@ void LasReader::addDimensions(PointContextRef ctx)
         ctx.registerDim(Id::ScanChannel);
 
     for (auto& dim : m_extraDims)
-        dim.m_dimType.m_id = ctx.assignDim(dim.m_name, dim.m_dimType.m_type);
+    {
+        Dimension::Type::Enum type = dim.m_dimType.m_type;
+        if (dim.m_dimType.m_xform.nonstandard())
+            type = Dimension::Type::Double;
+        dim.m_dimType.m_id = ctx.assignDim(dim.m_name, type);
+    }
 }
 
 
@@ -592,12 +684,8 @@ void LasReader::loadPointV10(PointBuffer& data, char *buf, size_t bufsize)
         data.setField(Dimension::Id::Blue, nextId, blue);
     }
 
-    Everything e;
-    for (auto& dim : m_extraDims)
-    {
-        istream.get(dim.m_dimType.m_type, e);
-        data.setField(dim.m_dimType.m_id, dim.m_dimType.m_type, nextId, &e);
-    }
+    if (m_extraDims.size())
+        loadExtraDims(istream, data, nextId);
 }
 
 void LasReader::loadPointV14(PointBuffer& data, char *buf, size_t bufsize)
@@ -667,11 +755,34 @@ void LasReader::loadPointV14(PointBuffer& data, char *buf, size_t bufsize)
         data.setField(Dimension::Id::Infrared, nextId, nearInfraRed);
     }
 
+    if (m_extraDims.size())
+        loadExtraDims(istream, data, nextId);
+}
+
+
+void LasReader::loadExtraDims(LeExtractor& istream, PointBuffer& data,
+    PointId nextId)
+{
     Everything e;
     for (auto& dim : m_extraDims)
     {
+        // Dimension type of None is undefined and unprocessed
+        if (dim.m_dimType.m_type == Dimension::Type::None)
+        {
+            istream.skip(dim.m_size);
+            continue;
+        }
+
         istream.get(dim.m_dimType.m_type, e);
-        data.setField(dim.m_dimType.m_id, dim.m_dimType.m_type, nextId, &e);
+        if (dim.m_dimType.m_xform.nonstandard())    
+        {
+            double d = toDouble(e, dim.m_dimType.m_type);
+            d = d * dim.m_dimType.m_xform.m_scale +
+                dim.m_dimType.m_xform.m_offset;
+            data.setField(dim.m_dimType.m_id, nextId, d);
+        }
+        else
+            data.setField(dim.m_dimType.m_id, dim.m_dimType.m_type, nextId, &e);
     }
 }
 

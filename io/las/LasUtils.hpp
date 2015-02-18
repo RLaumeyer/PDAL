@@ -42,10 +42,31 @@ namespace pdal
 
 struct ExtraDim
 {
+    ExtraDim(const std::string name, Dimension::Type::Enum type,
+            double scale = 1.0, double offset = 0.0) :
+        m_name(name), m_dimType(Dimension::Id::Unknown, type, scale, offset),
+        m_size(0)
+    {}
+
+    friend bool operator == (const ExtraDim& ed1, const ExtraDim& ed2);
+
     std::string m_name;
     DimType m_dimType;
+    size_t m_size;  // Only set when type is None.
 };
 
+inline bool operator == (const ExtraDim& ed1, const ExtraDim& ed2)
+{
+    // This is an incomplete comparison, but it should suffice since we
+    // only use it to compare an ExtraDim specified in an option with
+    // one created from a VLR entry.
+    return (ed1.m_name == ed2.m_name &&
+        ed1.m_dimType.m_type == ed2.m_dimType.m_type &&
+        ed1.m_size == ed2.m_size);
+}
+
+// This is the structure of each record in the extra bytes spec.  Not used
+// directly for storage, but here mostly for reference.
 struct ExtraBytesSpec
 {
     char m_reserved[2];
@@ -64,90 +85,50 @@ struct ExtraBytesSpec
 class ExtraBytesIf
 {
 public:
+    ExtraBytesIf() : m_type(Dimension::Type::None), m_fieldCnt(0), m_size(0)
+    {
+        for (size_t i = 0; i < 3; ++i)
+        {
+            m_scale[i] = 1.0;
+            m_offset[i] = 0.0;
+        }
+    }
+
     ExtraBytesIf(const std::string& name, Dimension::Type::Enum type,
-        const std::string& description)
+            const std::string& description) :
+        m_type(type), m_name(name), m_description(description), m_size(0)
     {
-        memset(&m_extraField, 0, sizeof(m_extraField));
-        setType(type);
-        setName(name);
-        setDescription(description);
+        for (size_t i = 0; i < 3; ++i)
+        {
+            // Setting the scale to 0 looks wrong, but it isn't.  If the
+            // scale option flag isn't set, the scale is supposed to be 0.
+            // When we write the VLR, we always clear the scale flag.
+            m_scale[i] = 0.0;
+            m_offset[i] = 0.0;
+        }
+        m_fieldCnt = (m_type == Dimension::Type::None ? 0 : 1);
     }
 
-
-    void setType(Dimension::Type::Enum type)
-    {
-        using namespace Dimension::Type;
-
-        Dimension::Type::Enum lastypes[] = {
-            None, Unsigned8, Signed8, Unsigned16, Signed16,
-            Unsigned32, Signed32, Unsigned64, Signed64, Float, Double
-        };
-
-        for (size_t i = 0; i < sizeof(lastypes) / sizeof(lastypes[0]); ++i)
-            if (type == lastypes[i])
-            {
-                m_extraField.m_dataType = (uint8_t)i;
-                break;
-            }
-    }
-
-    void setName(std::string name)
-    { 
-        name.resize(32);
-        memcpy(m_extraField.m_name, name.data(), 32);
-    }
-    void setDescription(std::string description)
-    {
-        description.resize(32);
-        memcpy(m_extraField.m_description, description.data(), 32);
-    }
-    void appendTo(std::vector<uint8_t>& ebBytes)
-    {
-        size_t offset = ebBytes.size();
-        ebBytes.resize(ebBytes.size() + sizeof(ExtraBytesSpec));
-        memcpy(ebBytes.data() + offset, &m_extraField, sizeof(ExtraBytesSpec));
-    }
+    void appendTo(std::vector<uint8_t>& ebBytes);
+    void readFrom(const char *buf);
+    uint8_t lasType();
+    void setType(uint8_t lastype);
+    std::vector<ExtraDim> toExtraDims();
 
 private:
-    ExtraBytesSpec m_extraField;
+    Dimension::Type::Enum m_type;
+    unsigned m_fieldCnt; // Must be 0 - 3;
+    double m_scale[3];
+    double m_offset[3];
+    std::string m_name;
+    std::string m_description;
+    size_t m_size;
 };
 
 namespace LasUtils
 {
 
-inline std::vector<ExtraDim> parse(const StringList& dimString)
-{
-    std::vector<ExtraDim> extraDims;
-
-    for (auto& dim : dimString)
-    {
-        StringList s = Utils::split2(dim, '=');
-        if (s.size() != 2)
-        {
-            std::ostringstream oss;
-            oss << "Invalid extra dimension specified: '" << dim <<
-                "'.  Need <dimension>=<type>.  See documentation "
-                " for details.";
-            throw pdal_error(oss.str());
-        }
-        Utils::trim(s[0]);
-        Utils::trim(s[1]);
-        Dimension::Type::Enum type = Dimension::type(s[1]);
-        if (type == Dimension::Type::None)
-        {
-            std::ostringstream oss;
-            oss << "Invalid extra dimension type specified: '" <<
-                dim << "'.  Need <dimension>=<type>.  See documentations "
-                " for details.";
-            throw pdal_error(oss.str());
-        }
-        ExtraDim ed;
-        ed.m_name = s[0];
-        ed.m_dimType.m_type = type;
-        extraDims.push_back(ed);
-    }
-    return extraDims;
-}
+std::vector<ExtraDim> parse(const StringList& dimString);
 
 } // namespace LasUtils
 

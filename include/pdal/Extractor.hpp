@@ -106,6 +106,7 @@ public:
     LeExtractor(const char *buf, std::size_t size) : Extractor(buf, size)
     {}
 
+    using Extractor::get;
     void get(Dimension::Type::Enum type, Everything& e)
     {
         using namespace Dimension::Type;

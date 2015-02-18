@@ -41,6 +41,9 @@ namespace pdal
 class PDAL_DLL Inserter
 {
 public:
+    Inserter(unsigned char *buf, std::size_t size) : m_pbase((char *)buf),
+        m_epptr((char *)buf + size), m_pptr((char *)buf)
+    {}
     Inserter(char *buf, std::size_t size) : m_pbase(buf),
         m_epptr(buf + size), m_pptr(buf)
     {}
@@ -85,7 +88,10 @@ class PDAL_DLL LeInserter : public Inserter
 public:
     LeInserter(char *buf, std::size_t size) : Inserter(buf, size)
     {}
+    LeInserter(unsigned char *buf, std::size_t size) : Inserter(buf, size)
+    {}
 
+    using Inserter::put;
     void put(Dimension::Type::Enum type, const Everything& e)
     {
        using namespace Dimension::Type;

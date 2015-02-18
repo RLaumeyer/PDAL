@@ -14,6 +14,7 @@ set (srcs
   ${PDAL_DRIVERS_LAS_GTIFF}
   ${PDAL_DRIVERS_LAS_LASZIP}
   LasHeader.cpp
+  LasUtils.cpp
   SummaryData.cpp
   VariableLengthRecord.cpp
 )

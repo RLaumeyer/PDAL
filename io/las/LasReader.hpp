@@ -47,6 +47,7 @@ namespace pdal
 
 class NitfReader;
 class LasHeader;
+class LeExtractor;
 class PointDimensions;
 
 #define LASREADERDOCS "ASPRS LAS 1.0 - 1.4 read support. LASzip support is also \n" \
@@ -90,6 +91,7 @@ private:
     void fixupVlrs();
     VariableLengthRecord *findVlr(const std::string& userId, uint16_t recordId);
     void setSrsFromVlrs(MetadataNode& m);
+    void readExtraBytesVlr();
     SpatialReference getSrsFromVlrs();
     SpatialReference getSrsFromWktVlr();
     SpatialReference getSrsFromGeotiffVlr();
@@ -106,6 +108,7 @@ private:
     void loadPoint(PointBuffer& data, char *buf, size_t bufsize);
     void loadPointV10(PointBuffer& data, char *buf, size_t bufsize);
     void loadPointV14(PointBuffer& data, char *buf, size_t bufsize);
+    void loadExtraDims(LeExtractor& istream, PointBuffer& data, PointId nextId);
     point_count_t readFileBlock(
             std::vector<char>& buf,
             point_count_t maxPoints);
